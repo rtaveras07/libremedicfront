@@ -1,0 +1,303 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import {
+  Search,
+  Plus,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Calendar,
+  Phone,
+  Mail,
+  Stethoscope,
+  Award,
+  Clock,
+  Loader2,
+} from "lucide-react"
+import { AppSidebar } from "@/components/app-sidebar"
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { api, User } from "@/lib/api"
+import { toast } from "sonner"
+import Link from "next/link"
+
+export default function DoctorsPage() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [doctors, setDoctors] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    loadDoctors()
+  }, [])
+
+  const loadDoctors = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const response = await api.getUsers()
+      
+      if (response.success) {
+        setDoctors(response.data || [])
+      } else {
+        setError(response.error || "Error al cargar doctores")
+        toast.error("Error al cargar la lista de doctores")
+      }
+    } catch (error) {
+      console.error("Error loading doctors:", error)
+      setError("Error de conexión")
+      toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const filteredDoctors = doctors.filter(
+    (doctor) =>
+      `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.email.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
+  const getDoctorName = (doctor: User) => `${doctor.firstName} ${doctor.lastName}`
+  
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  }
+
+  const getRegistrationDate = (createdAt: string) => {
+    return new Date(createdAt).toLocaleDateString('es-ES')
+  }
+
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-xl font-semibold">Gestión de Médicos</h1>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>Cargando médicos...</span>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
+  if (error) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-xl font-semibold">Gestión de Médicos</h1>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <Card className="w-full max-w-md">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="text-red-500 text-lg font-semibold">Error al cargar médicos</div>
+                  <p className="text-muted-foreground">{error}</p>
+                  <Button onClick={loadDoctors} variant="outline">
+                    Reintentar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <h1 className="text-xl font-semibold">Gestión de Médicos</h1>
+        </header>
+
+        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+          {/* Header con búsqueda y acciones */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar médicos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 w-[300px]"
+                />
+              </div>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filtros
+              </Button>
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Médico
+            </Button>
+          </div>
+
+          {/* Estadísticas rápidas */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Médicos</CardTitle>
+                <Stethoscope className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{doctors.length}</div>
+                <p className="text-xs text-muted-foreground">Registrados en el sistema</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Médicos Activos</CardTitle>
+                <Award className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{doctors.length}</div>
+                <p className="text-xs text-muted-foreground">100% disponibles</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Consultas Este Mes</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">Sin datos disponibles</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Promedio Rating</CardTitle>
+                <Award className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">-</div>
+                <p className="text-xs text-muted-foreground">Sin evaluaciones</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tabla de médicos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Médicos</CardTitle>
+              <CardDescription>Gestiona la información de todos los médicos registrados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredDoctors.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    {searchTerm ? 'No se encontraron médicos con ese criterio de búsqueda.' : 'No hay médicos registrados.'}
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Médico</TableHead>
+                      <TableHead>Contacto</TableHead>
+                      <TableHead>Fecha Registro</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDoctors.map((doctor) => (
+                      <TableRow key={doctor.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={`/placeholder-user.jpg`} />
+                              <AvatarFallback>
+                                {getInitials(doctor.firstName, doctor.lastName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{getDoctorName(doctor)}</div>
+                              <div className="text-sm text-muted-foreground">Médico General</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center text-sm">
+                              <Mail className="h-3 w-3 mr-1" />
+                              {doctor.email}
+                            </div>
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3 mr-1" />
+                              No disponible
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getRegistrationDate(doctor.createdAt)}</TableCell>
+                        <TableCell>
+                          <Badge variant="default">Activo</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Ver Perfil
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Horario
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Stethoscope className="mr-2 h-4 w-4" />
+                                Consultas
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
