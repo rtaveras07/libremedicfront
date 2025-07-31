@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -10,23 +10,12 @@ import { FormFieldWrapper } from "@/components/forms/form-field-wrapper"
 import { useFormValidation, validationRules } from "@/components/forms/form-validation-utils"
 import { AlertTriangle, CheckCircle, Loader2, Pill, User, Calendar, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api, Patient, User as Doctor } from "@/lib/api"
+import { api, Prescription, Patient, User as Doctor } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useRouter } from "next/navigation"
-
-const initialFormData = {
-  patientId: "",
-  medication: "",
-  dosage: "",
-  frequency: "",
-  instructions: "",
-  startDate: "",
-  endDate: "",
-  prescribedBy: "",
-}
 
 const validationSchema = {
   patientId: (value: string) => validationRules.required(value, "El paciente"),
@@ -39,21 +28,86 @@ const validationSchema = {
   prescribedBy: (value: string) => validationRules.required(value, "El médico"),
 }
 
-export default function NewPrescriptionPage() {
+interface EditPrescriptionPageProps {
+  params: Promise<{
+    id: string
+  }>
+}
+
+export default function EditPrescriptionPage({ params }: EditPrescriptionPageProps) {
   const router = useRouter()
+  const { id } = use(params)
+  const [prescription, setPrescription] = useState<Prescription | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [doctors, setDoctors] = useState<Doctor[]>([])
+
   const { formData, errors, isSubmitting, setIsSubmitting, validateForm, updateField } = useFormValidation(
-    initialFormData,
+    {
+      patientId: "",
+      medication: "",
+      dosage: "",
+      frequency: "",
+      instructions: "",
+      startDate: "",
+      endDate: "",
+      prescribedBy: "",
+    },
     validationSchema,
   )
 
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [doctors, setDoctors] = useState<Doctor[]>([])
+
+  const frequencyOptions = [
+    "Una vez al día",
+    "Dos veces al día",
+    "Tres veces al día",
+    "Cada 6 horas",
+    "Cada 8 horas",
+    "Cada 12 horas",
+    "Según necesidad",
+    "Antes de las comidas",
+    "Después de las comidas",
+    "Con el estómago vacío",
+  ]
 
   useEffect(() => {
+    loadPrescription()
     loadPatients()
     loadDoctors()
-  }, [])
+  }, [id])
+
+  const loadPrescription = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const response = await api.getPrescription(id)
+      
+      if (response.success) {
+        setPrescription(response.data)
+        // Pre-fill form with prescription data
+        updateField("patientId", response.data.patientId.toString())
+        updateField("medication", response.data.medication)
+        updateField("dosage", response.data.dosage)
+        updateField("frequency", response.data.frequency)
+        updateField("instructions", response.data.instructions)
+        updateField("startDate", response.data.startDate.split('T')[0])
+        updateField("endDate", response.data.endDate ? response.data.endDate.split('T')[0] : "")
+        updateField("prescribedBy", response.data.prescribedBy.toString())
+      } else {
+        setError(response.error || "Error al cargar la prescripción")
+        toast.error("Error al cargar la prescripción")
+      }
+    } catch (error) {
+      console.error("Error loading prescription:", error)
+      setError("Error de conexión")
+      toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const loadPatients = async () => {
     try {
@@ -76,19 +130,6 @@ export default function NewPrescriptionPage() {
       console.error("Error loading doctors:", error)
     }
   }
-
-  const frequencyOptions = [
-    "Una vez al día",
-    "Dos veces al día",
-    "Tres veces al día",
-    "Cada 6 horas",
-    "Cada 8 horas",
-    "Cada 12 horas",
-    "Según necesidad",
-    "Antes de las comidas",
-    "Después de las comidas",
-    "Con el estómago vacío",
-  ]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,18 +155,18 @@ export default function NewPrescriptionPage() {
         prescribedBy: parseInt(formData.prescribedBy),
       }
 
-      const response = await api.createPrescription(prescriptionData)
+      const response = await api.updatePrescription(id, prescriptionData)
       
       if (response.success) {
         setSubmitStatus("success")
-        toast.success("Prescripción creada exitosamente!")
+        toast.success("Prescripción actualizada exitosamente!")
         router.push("/prescriptions")
       } else {
         setSubmitStatus("error")
-        toast.error(response.error || "Error al crear la prescripción")
+        toast.error(response.error || "Error al actualizar la prescripción")
       }
     } catch (error) {
-      console.error("Error creating prescription:", error)
+      console.error("Error updating prescription:", error)
       setSubmitStatus("error")
       toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
     } finally {
@@ -137,6 +178,54 @@ export default function NewPrescriptionPage() {
     router.push("/prescriptions")
   }
 
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-xl font-semibold">Editar Prescripción</h1>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>Cargando prescripción...</span>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
+  if (error || !prescription) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-xl font-semibold">Editar Prescripción</h1>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="text-red-500 text-lg font-semibold">Error al cargar la prescripción</div>
+              <p className="text-muted-foreground">{error || "Prescripción no encontrada"}</p>
+              <button 
+                onClick={() => router.push("/prescriptions")}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Volver a Prescripciones
+              </button>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -144,7 +233,7 @@ export default function NewPrescriptionPage() {
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <h1 className="text-xl font-semibold">Nueva Prescripción</h1>
+          <h1 className="text-xl font-semibold">Editar Prescripción: {prescription.medication}</h1>
         </header>
 
         <div className="flex-1 p-4 md:p-8 pt-6">
@@ -155,7 +244,7 @@ export default function NewPrescriptionPage() {
                 Información de la Prescripción
               </CardTitle>
               <CardDescription>
-                Complete todos los campos requeridos para registrar una nueva prescripción médica.
+                Modifica la información de la prescripción según sea necesario.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -300,7 +389,7 @@ export default function NewPrescriptionPage() {
                   <Alert>
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Prescripción creada exitosamente. Redirigiendo...
+                      Prescripción actualizada exitosamente. Redirigiendo...
                     </AlertDescription>
                   </Alert>
                 )}
@@ -314,10 +403,10 @@ export default function NewPrescriptionPage() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creando...
+                        Actualizando...
                       </>
                     ) : (
-                      "Crear Prescripción"
+                      "Actualizar Prescripción"
                     )}
                   </Button>
                 </div>
@@ -328,4 +417,4 @@ export default function NewPrescriptionPage() {
       </SidebarInset>
     </SidebarProvider>
   )
-}
+} 

@@ -87,6 +87,22 @@ export interface MedicalCenter {
   updatedAt: string;
 }
 
+// Appointment interface
+export interface Appointment {
+  id: number;
+  patientId: number;
+  doctorId: number;
+  appointmentDate: string;
+  appointmentTime: string;
+  reason: string;
+  status: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  Patient?: Patient;
+  Doctor?: User;
+}
+
 class ApiClient {
   private baseURL: string;
 
@@ -188,6 +204,10 @@ export const API_ENDPOINTS = {
   MEDICAL_CENTERS: '/medical-centers',
   MEDICAL_CENTER: (id: string | number) => `/medical-centers/${id}`,
   
+  // Appointments
+  APPOINTMENTS: '/appointments',
+  APPOINTMENT: (id: string | number) => `/appointments/${id}`,
+  
   // Auth
   LOGIN: '/auth/login',
   LOGOUT: '/auth/logout',
@@ -232,6 +252,13 @@ export const api = {
   createMedicalCenter: (data: Partial<MedicalCenter>) => apiClient.post<MedicalCenter>(API_ENDPOINTS.MEDICAL_CENTERS, data),
   updateMedicalCenter: (id: string | number, data: Partial<MedicalCenter>) => apiClient.put<MedicalCenter>(API_ENDPOINTS.MEDICAL_CENTER(id), data),
   deleteMedicalCenter: (id: string | number) => apiClient.delete(API_ENDPOINTS.MEDICAL_CENTER(id)),
+
+  // Appointments
+  getAppointments: () => apiClient.get<Appointment[]>(API_ENDPOINTS.APPOINTMENTS),
+  getAppointment: (id: string | number) => apiClient.get<Appointment>(API_ENDPOINTS.APPOINTMENT(id)),
+  createAppointment: (data: Partial<Appointment>) => apiClient.post<Appointment>(API_ENDPOINTS.APPOINTMENTS, data),
+  updateAppointment: (id: string | number, data: Partial<Appointment>) => apiClient.put<Appointment>(API_ENDPOINTS.APPOINTMENT(id), data),
+  deleteAppointment: (id: string | number) => apiClient.delete(API_ENDPOINTS.APPOINTMENT(id)),
 
   // Auth
   login: (credentials: { email: string; password: string }) => 
