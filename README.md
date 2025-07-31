@@ -1,5 +1,7 @@
 # 🚀 LibreMedic Frontend
 
+
+
 **LibreMedic** is a modern, full-featured medical management system. This frontend application provides a clean, responsive, and intuitive interface for managing clinics, hospitals, and medical offices.
 
 ---
