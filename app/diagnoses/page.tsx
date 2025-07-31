@@ -80,7 +80,7 @@ export default function DiagnosesPage() {
 
   const filteredDiagnoses = diagnoses.filter(
     (diagnosis) =>
-      diagnosis.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        diagnosis.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       diagnosis.symptoms.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (diagnosis.Patient && `${diagnosis.Patient.firstName} ${diagnosis.Patient.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (diagnosis.Doctor && `${diagnosis.Doctor.firstName} ${diagnosis.Doctor.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())),
@@ -222,9 +222,9 @@ export default function DiagnosesPage() {
               </Button>
             </div>
             <Button onClick={() => router.push("/diagnoses/new")}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Diagnóstico
-            </Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Diagnóstico
+              </Button>
           </div>
 
           {/* Estadísticas rápidas */}
@@ -291,29 +291,29 @@ export default function DiagnosesPage() {
                   </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Paciente</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Paciente</TableHead>
                       <TableHead>Diagnóstico</TableHead>
-                      <TableHead>Médico</TableHead>
-                      <TableHead>Severidad</TableHead>
+                    <TableHead>Médico</TableHead>
+                    <TableHead>Severidad</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredDiagnoses.map((diagnosis) => (
-                      <TableRow key={diagnosis.id}>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDiagnoses.map((diagnosis) => (
+                    <TableRow key={diagnosis.id}>
                         <TableCell className="font-medium">
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="h-8 w-8">
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-8 w-8">
                               <AvatarImage src="/placeholder-user.jpg" />
-                              <AvatarFallback>
+                            <AvatarFallback>
                                 {diagnosis.Patient ? getInitials(diagnosis.Patient.firstName, diagnosis.Patient.lastName) : 'P'}
-                              </AvatarFallback>
-                            </Avatar>
+                            </AvatarFallback>
+                          </Avatar>
                             <div>
                               <div className="font-medium">
                                 {diagnosis.Patient ? `${diagnosis.Patient.firstName} ${diagnosis.Patient.lastName}` : 'Paciente no encontrado'}
@@ -322,11 +322,11 @@ export default function DiagnosesPage() {
                                 {diagnosis.Patient?.email || 'Sin email'}
                               </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                           <div className="space-y-1">
-                            <div className="font-medium">{diagnosis.diagnosis}</div>
+                          <div className="font-medium">{diagnosis.diagnosis}</div>
                             <div className="text-sm text-muted-foreground line-clamp-2">
                               {diagnosis.symptoms}
                             </div>
@@ -343,40 +343,40 @@ export default function DiagnosesPage() {
                             <span className="text-sm">
                               {diagnosis.Doctor ? `Dr. ${diagnosis.Doctor.firstName} ${diagnosis.Doctor.lastName}` : 'Médico no encontrado'}
                             </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getSeverityColor(diagnosis.severity)}>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getSeverityColor(diagnosis.severity)}>
                             {diagnosis.severity}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(diagnosis.status)}>
                             {diagnosis.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Calendar className="h-3 w-3 mr-1" />
                             {getDiagnosisDate(diagnosis.diagnosisDate)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => router.push(`/diagnoses/${diagnosis.id}`)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Ver Detalles
-                              </DropdownMenuItem>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver Detalles
+                            </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => router.push(`/diagnoses/${diagnosis.id}/edit`)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-red-600 focus:text-red-600"
                               >
@@ -414,14 +414,14 @@ export default function DiagnosesPage() {
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
               )}
             </CardContent>
           </Card>

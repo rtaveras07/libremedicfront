@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -10,25 +10,12 @@ import { FormFieldWrapper } from "@/components/forms/form-field-wrapper"
 import { useFormValidation, validationRules } from "@/components/forms/form-validation-utils"
 import { AlertTriangle, CheckCircle, Loader2, Stethoscope, User, Calendar, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api, Patient, User as Doctor } from "@/lib/api"
+import { api, Diagnosis, Patient, User as Doctor } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useRouter } from "next/navigation"
-
-const initialFormData = {
-  patientId: "",
-  doctorId: "",
-  diagnosis: "",
-  symptoms: "",
-  treatment: "",
-  severity: "",
-  status: "",
-  diagnosisDate: "",
-  followUpDate: "",
-  notes: "",
-}
 
 const validationSchema = {
   patientId: (value: string) => validationRules.required(value, "El paciente"),
@@ -43,21 +30,90 @@ const validationSchema = {
   notes: () => "",
 }
 
-export default function NewDiagnosisPage() {
+interface EditDiagnosisPageProps {
+  params: Promise<{
+    id: string
+  }>
+}
+
+export default function EditDiagnosisPage({ params }: EditDiagnosisPageProps) {
   const router = useRouter()
+  const { id } = use(params)
+  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [doctors, setDoctors] = useState<Doctor[]>([])
+
   const { formData, errors, isSubmitting, setIsSubmitting, validateForm, updateField } = useFormValidation(
-    initialFormData,
+    {
+      patientId: "",
+      doctorId: "",
+      diagnosis: "",
+      symptoms: "",
+      treatment: "",
+      severity: "",
+      status: "",
+      diagnosisDate: "",
+      followUpDate: "",
+      notes: "",
+    },
     validationSchema,
   )
 
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [doctors, setDoctors] = useState<Doctor[]>([])
+
+  const severityOptions = [
+    "Leve",
+    "Moderado",
+    "Grave",
+  ]
+
+  const statusOptions = [
+    "Activo",
+    "En Seguimiento",
+    "Resuelto",
+    "Crónico",
+  ]
 
   useEffect(() => {
+    loadDiagnosis()
     loadPatients()
     loadDoctors()
-  }, [])
+  }, [id])
+
+  const loadDiagnosis = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const response = await api.getDiagnosis(id)
+      
+      if (response.success) {
+        setDiagnosis(response.data)
+        // Pre-fill form with diagnosis data
+        updateField("patientId", response.data.patientId.toString())
+        updateField("doctorId", response.data.doctorId.toString())
+        updateField("diagnosis", response.data.diagnosis)
+        updateField("symptoms", response.data.symptoms)
+        updateField("treatment", response.data.treatment)
+        updateField("severity", response.data.severity)
+        updateField("status", response.data.status)
+        updateField("diagnosisDate", response.data.diagnosisDate.split('T')[0])
+        updateField("followUpDate", response.data.followUpDate ? response.data.followUpDate.split('T')[0] : "")
+        updateField("notes", response.data.notes || "")
+      } else {
+        setError(response.error || "Error al cargar el diagnóstico")
+        toast.error("Error al cargar el diagnóstico")
+      }
+    } catch (error) {
+      console.error("Error loading diagnosis:", error)
+      setError("Error de conexión")
+      toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const loadPatients = async () => {
     try {
@@ -80,19 +136,6 @@ export default function NewDiagnosisPage() {
       console.error("Error loading doctors:", error)
     }
   }
-
-  const severityOptions = [
-    "Leve",
-    "Moderado",
-    "Grave",
-  ]
-
-  const statusOptions = [
-    "Activo",
-    "En Seguimiento",
-    "Resuelto",
-    "Crónico",
-  ]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -120,18 +163,18 @@ export default function NewDiagnosisPage() {
         notes: formData.notes || null,
       }
 
-      const response = await api.createDiagnosis(diagnosisData)
+      const response = await api.updateDiagnosis(id, diagnosisData)
       
       if (response.success) {
         setSubmitStatus("success")
-        toast.success("Diagnóstico creado exitosamente!")
+        toast.success("Diagnóstico actualizado exitosamente!")
         router.push("/diagnoses")
       } else {
         setSubmitStatus("error")
-        toast.error(response.error || "Error al crear el diagnóstico")
+        toast.error(response.error || "Error al actualizar el diagnóstico")
       }
     } catch (error) {
-      console.error("Error creating diagnosis:", error)
+      console.error("Error updating diagnosis:", error)
       setSubmitStatus("error")
       toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
     } finally {
@@ -143,6 +186,54 @@ export default function NewDiagnosisPage() {
     router.push("/diagnoses")
   }
 
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-xl font-semibold">Editar Diagnóstico</h1>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>Cargando diagnóstico...</span>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
+  if (error || !diagnosis) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-xl font-semibold">Editar Diagnóstico</h1>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="text-red-500 text-lg font-semibold">Error al cargar el diagnóstico</div>
+              <p className="text-muted-foreground">{error || "Diagnóstico no encontrado"}</p>
+              <button 
+                onClick={() => router.push("/diagnoses")}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Volver a Diagnósticos
+              </button>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -150,7 +241,7 @@ export default function NewDiagnosisPage() {
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <h1 className="text-xl font-semibold">Nuevo Diagnóstico</h1>
+          <h1 className="text-xl font-semibold">Editar Diagnóstico: {diagnosis.diagnosis}</h1>
         </header>
 
         <div className="flex-1 p-4 md:p-8 pt-6">
@@ -161,7 +252,7 @@ export default function NewDiagnosisPage() {
                 Información del Diagnóstico
               </CardTitle>
               <CardDescription>
-                Complete todos los campos requeridos para registrar un nuevo diagnóstico médico.
+                Modifica la información del diagnóstico según sea necesario.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -340,7 +431,7 @@ export default function NewDiagnosisPage() {
                   <Alert>
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Diagnóstico creado exitosamente. Redirigiendo...
+                      Diagnóstico actualizado exitosamente. Redirigiendo...
                     </AlertDescription>
                   </Alert>
                 )}
@@ -354,10 +445,10 @@ export default function NewDiagnosisPage() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creando...
+                        Actualizando...
                       </>
                     ) : (
-                      "Crear Diagnóstico"
+                      "Actualizar Diagnóstico"
                     )}
                   </Button>
                 </div>
@@ -368,4 +459,4 @@ export default function NewDiagnosisPage() {
       </SidebarInset>
     </SidebarProvider>
   )
-}
+} 
