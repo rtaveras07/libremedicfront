@@ -1,105 +1,95 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 
-// Utilidades de validación
 export const validationRules = {
+  required: (value: string, fieldName: string = "Este campo") => {
+    if (!value || value.trim() === "") {
+      return `${fieldName} es obligatorio`
+    }
+    return ""
+  },
+  
   email: (value: string) => {
-    if (!value.trim()) return "El email es obligatorio"
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Formato de email inválido"
+    if (!value) return ""
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(value)) {
+      return "Formato de email inválido"
+    }
     return ""
   },
-
+  
   phone: (value: string) => {
-    if (!value.trim()) return "El teléfono es obligatorio"
-    if (!/^\+?[\d\s-()]+$/.test(value)) return "Formato de teléfono inválido"
+    if (!value) return ""
+    const phoneRegex = /^\+?[\d\s\-\(\)]+$/
+    if (!phoneRegex.test(value)) {
+      return "Formato de teléfono inválido"
+    }
     return ""
   },
-
-  required: (value: string, fieldName: string) => {
-    if (!value.trim()) return `${fieldName} es obligatorio`
-    return ""
-  },
-
+  
   dni: (value: string) => {
-    if (!value.trim()) return "El DNI/NIE es obligatorio"
-    if (
-      !/^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/i.test(value) &&
-      !/^[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]$/i.test(value)
-    ) {
-      return "Formato de DNI/NIE inválido"
+    if (!value) return ""
+    const dniRegex = /^\d{8}[A-Z]$/
+    if (!dniRegex.test(value)) {
+      return "Formato de DNI inválido (ej: 12345678A)"
     }
     return ""
   },
-
-  age: (birthDate: Date | undefined) => {
-    if (!birthDate) return "La fecha de nacimiento es obligatoria"
-    const age = new Date().getFullYear() - birthDate.getFullYear()
-    if (age < 0 || age > 150) return "Fecha de nacimiento inválida"
-    return ""
-  },
-
-  icd10: (value: string) => {
-    if (value && !/^[A-Z]\d{2}(\.\d{1,2})?$/.test(value)) {
-      return "Formato de código CIE-10 inválido (ej: J06.9)"
+  
+  age: (value: Date | undefined) => {
+    if (!value) return ""
+    const today = new Date()
+    const age = today.getFullYear() - value.getFullYear()
+    if (age < 0 || age > 120) {
+      return "Edad inválida"
     }
     return ""
-  },
-
-  dateRange: (startDate: Date | undefined, endDate: Date | undefined, startLabel: string, endLabel: string) => {
-    if (startDate && endDate && endDate <= startDate) {
-      return `${endLabel} debe ser posterior a ${startLabel}`
-    }
-    return ""
-  },
+  }
 }
 
-// Hook personalizado para manejo de formularios
 export function useFormValidation<T extends Record<string, any>>(
   initialData: T,
-  validationSchema: Record<keyof T, (value: any) => string>,
+  validationSchema: Record<keyof T, (value: any) => string>
 ) {
   const [formData, setFormData] = useState<T>(initialData)
   const [errors, setErrors] = useState<Record<keyof T, string>>({} as Record<keyof T, string>)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const validateField = (field: keyof T, value: any) => {
-    const error = validationSchema[field]?.(value) || ""
-    setErrors((prev) => ({ ...prev, [field]: error }))
-    return error === ""
-  }
+  const updateField = useCallback((field: keyof T, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }))
+    }
+  }, [errors])
 
-  const validateForm = () => {
-    const newErrors = {} as Record<keyof T, string>
-    let isValid = true
-
-    Object.keys(validationSchema).forEach((field) => {
-      const error = validationSchema[field as keyof T](formData[field as keyof T])
+  const validateForm = useCallback(() => {
+    const newErrors: Record<keyof T, string> = {} as Record<keyof T, string>
+    
+    Object.keys(validationSchema).forEach((key) => {
+      const fieldKey = key as keyof T
+      const validator = validationSchema[fieldKey]
+      const value = formData[fieldKey]
+      const error = validator(value)
+      
       if (error) {
-        newErrors[field as keyof T] = error
-        isValid = false
+        newErrors[fieldKey] = error
       }
     })
-
+    
     setErrors(newErrors)
-    return isValid
-  }
-
-  const updateField = (field: keyof T, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      validateField(field, value)
-    }
-  }
+    return Object.keys(newErrors).length === 0
+  }, [formData, validationSchema])
 
   return {
     formData,
     errors,
     isSubmitting,
     setIsSubmitting,
-    validateField,
     validateForm,
     updateField,
-    setFormData,
+    setFormData
   }
 }

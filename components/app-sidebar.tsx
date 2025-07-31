@@ -54,7 +54,7 @@ const data = {
     },
     {
       title: "Centros Médicos",
-      url: "#",
+      url: "/medical-centers",
       icon: Building2,
     },
     {

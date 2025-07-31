@@ -7,15 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FormFieldWrapper } from "./form-field-wrapper"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useFormValidation, validationRules } from "./form-validation-utils"
-import { CalendarIcon, User, Phone, Mail, AlertTriangle, CheckCircle, Loader2 } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { AlertTriangle, CheckCircle, Loader2, User, Phone, Mail } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -23,6 +18,8 @@ import { toast } from "sonner"
 interface CreatePatientFormProps {
   onSubmit: (patientData: any) => void
   onCancel: () => void
+  initialData?: any
+  isEditing?: boolean
 }
 
 const initialFormData = {
@@ -30,27 +27,14 @@ const initialFormData = {
   lastName: "",
   email: "",
   phone: "",
-  birthDate: undefined as Date | undefined,
+  dateOfBirth: "",
   gender: "",
-  identification: "",
   bloodType: "",
-  allergies: [] as string[],
-  chronicConditions: [] as string[],
-  emergencyContact: {
-    name: "",
-    relationship: "",
-    phone: "",
-  },
-  address: {
-    street: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "España",
-  },
-  occupation: "",
-  insurance: "",
-  notes: "",
+  address: "",
+  emergencyContact: "",
+  emergencyPhone: "",
+  allergies: "",
+  medicalHistory: "",
 }
 
 const validationSchema = {
@@ -58,28 +42,22 @@ const validationSchema = {
   lastName: (value: string) => validationRules.required(value, "Los apellidos"),
   email: validationRules.email,
   phone: validationRules.phone,
-  identification: validationRules.dni,
-  birthDate: validationRules.age,
+  dateOfBirth: (value: string) => validationRules.required(value, "La fecha de nacimiento"),
   gender: (value: string) => validationRules.required(value, "El género"),
-  // Otros campos opcionales no necesitan validación estricta
   bloodType: () => "",
-  allergies: () => "",
-  chronicConditions: () => "",
-  emergencyContact: () => "",
   address: () => "",
-  occupation: () => "",
-  insurance: () => "",
-  notes: () => "",
+  emergencyContact: () => "",
+  emergencyPhone: () => "",
+  allergies: () => "",
+  medicalHistory: () => "",
 }
 
-export function EnhancedCreatePatientForm({ onSubmit, onCancel }: CreatePatientFormProps) {
+export function EnhancedCreatePatientForm({ onSubmit, onCancel, initialData, isEditing = false }: CreatePatientFormProps) {
   const { formData, errors, isSubmitting, setIsSubmitting, validateForm, updateField } = useFormValidation(
-    initialFormData,
+    initialData || initialFormData,
     validationSchema,
   )
 
-  const [newAllergy, setNewAllergy] = useState("")
-  const [newCondition, setNewCondition] = useState("")
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
 
   const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
@@ -91,34 +69,6 @@ export function EnhancedCreatePatientForm({ onSubmit, onCancel }: CreatePatientF
       ...formData[parent as keyof typeof formData],
       [child]: value,
     })
-  }
-
-  const addAllergy = () => {
-    if (newAllergy.trim() && !formData.allergies.includes(newAllergy.trim())) {
-      updateField("allergies", [...formData.allergies, newAllergy.trim()])
-      setNewAllergy("")
-    }
-  }
-
-  const removeAllergy = (index: number) => {
-    updateField(
-      "allergies",
-      formData.allergies.filter((_, i) => i !== index),
-    )
-  }
-
-  const addCondition = () => {
-    if (newCondition.trim() && !formData.chronicConditions.includes(newCondition.trim())) {
-      updateField("chronicConditions", [...formData.chronicConditions, newCondition.trim()])
-      setNewCondition("")
-    }
-  }
-
-  const removeCondition = (index: number) => {
-    updateField(
-      "chronicConditions",
-      formData.chronicConditions.filter((_, i) => i !== index),
-    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,15 +84,27 @@ export function EnhancedCreatePatientForm({ onSubmit, onCancel }: CreatePatientF
     setSubmitStatus("idle")
 
     try {
-      const response = await api.createPatient(formData)
-      
-      if (response.success) {
-        onSubmit(response.data)
-        setSubmitStatus("success")
-        toast.success("Paciente creado exitosamente")
+      // Prepare data for API
+      const patientData = {
+        ...formData,
+        userId: 1 // Default user ID for now
+      }
+
+      if (isEditing) {
+        // For editing, we need to call the parent's onSubmit which will handle the API call
+        onSubmit(patientData)
       } else {
-        setSubmitStatus("error")
-        toast.error(response.error || "Error al crear el paciente")
+        // For creating, call the API directly
+        const response = await api.createPatient(patientData)
+        
+        if (response.success) {
+          onSubmit(response.data)
+          setSubmitStatus("success")
+          toast.success("Paciente creado exitosamente")
+        } else {
+          setSubmitStatus("error")
+          toast.error(response.error || "Error al crear el paciente")
+        }
       }
     } catch (error) {
       console.error("Error creating patient:", error)
@@ -228,43 +190,13 @@ export function EnhancedCreatePatientForm({ onSubmit, onCancel }: CreatePatientF
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormFieldWrapper label="DNI/NIE" required error={errors.identification}>
+            <FormFieldWrapper label="Fecha de Nacimiento" required error={errors.dateOfBirth}>
               <Input
-                value={formData.identification}
-                onChange={(e) => updateField("identification", e.target.value)}
-                placeholder="12345678A"
-                className={errors.identification ? "border-red-500" : ""}
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => updateField("dateOfBirth", e.target.value)}
+                className={errors.dateOfBirth ? "border-red-500" : ""}
               />
-            </FormFieldWrapper>
-
-            <FormFieldWrapper label="Fecha de Nacimiento" required error={errors.birthDate}>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.birthDate && "text-muted-foreground",
-                      errors.birthDate && "border-red-500",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.birthDate ? (
-                      format(formData.birthDate, "PPP", { locale: es })
-                    ) : (
-                      <span>Seleccionar fecha</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.birthDate}
-                    onSelect={(date) => updateField("birthDate", date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
             </FormFieldWrapper>
 
             <FormFieldWrapper label="Género" required error={errors.gender}>
@@ -273,15 +205,69 @@ export function EnhancedCreatePatientForm({ onSubmit, onCancel }: CreatePatientF
                   <SelectValue placeholder="Seleccionar género" />
                 </SelectTrigger>
                 <SelectContent>
-                  {genders.map((gender) => (
-                    <SelectItem key={gender} value={gender}>
-                      {gender}
+                  <SelectItem value="male">Masculino</SelectItem>
+                  <SelectItem value="female">Femenino</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormFieldWrapper>
+
+            <FormFieldWrapper label="Tipo de Sangre" error={errors.bloodType}>
+              <Select value={formData.bloodType} onValueChange={(value) => updateField("bloodType", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bloodTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </FormFieldWrapper>
           </div>
+
+          <FormFieldWrapper label="Dirección" error={errors.address}>
+            <Input
+              value={formData.address}
+              onChange={(e) => updateField("address", e.target.value)}
+              placeholder="Dirección completa"
+            />
+          </FormFieldWrapper>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormFieldWrapper label="Contacto de Emergencia" error={errors.emergencyContact}>
+              <Input
+                value={formData.emergencyContact}
+                onChange={(e) => updateField("emergencyContact", e.target.value)}
+                placeholder="Nombre del contacto"
+              />
+            </FormFieldWrapper>
+
+            <FormFieldWrapper label="Teléfono de Emergencia" error={errors.emergencyPhone}>
+              <Input
+                value={formData.emergencyPhone}
+                onChange={(e) => updateField("emergencyPhone", e.target.value)}
+                placeholder="+34 612 345 678"
+              />
+            </FormFieldWrapper>
+          </div>
+
+          <FormFieldWrapper label="Alergias" error={errors.allergies}>
+            <Input
+              value={formData.allergies}
+              onChange={(e) => updateField("allergies", e.target.value)}
+              placeholder="Alergias conocidas (ej: Penicilina, Polen)"
+            />
+          </FormFieldWrapper>
+
+          <FormFieldWrapper label="Historial Médico" error={errors.medicalHistory}>
+            <Input
+              value={formData.medicalHistory}
+              onChange={(e) => updateField("medicalHistory", e.target.value)}
+              placeholder="Condiciones médicas previas"
+            />
+          </FormFieldWrapper>
         </CardContent>
       </Card>
 
@@ -296,10 +282,10 @@ export function EnhancedCreatePatientForm({ onSubmit, onCancel }: CreatePatientF
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creando...
+              {isEditing ? "Actualizando..." : "Creando..."}
             </>
           ) : (
-            "Crear Paciente"
+            isEditing ? "Actualizar Paciente" : "Crear Paciente"
           )}
         </Button>
       </div>

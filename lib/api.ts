@@ -79,6 +79,10 @@ export interface MedicalCenter {
   address: string;
   phone: string;
   email: string;
+  website?: string;
+  type?: string;
+  capacity?: number;
+  description?: string;
   createdAt: string;
   updatedAt: string;
 }

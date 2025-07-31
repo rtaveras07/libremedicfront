@@ -1,19 +1,30 @@
 "use client"
 
-import { CreatePatientForm } from "@/components/forms/create-patient-form"
+import { EnhancedCreatePatientForm } from "@/components/forms/enhanced-create-patient-form"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function NewPatientPage() {
   const router = useRouter()
 
-  const handleSubmit = (patientData: any) => {
-    console.log("Nuevo paciente:", patientData)
-    // Aquí iría la lógica para guardar el paciente
-    alert("Paciente creado exitosamente!")
-    router.push("/patients")
+  const handleSubmit = async (patientData: any) => {
+    try {
+      const response = await api.createPatient(patientData)
+      
+      if (response.success) {
+        toast.success("Paciente creado exitosamente!")
+        router.push("/patients")
+      } else {
+        toast.error(response.error || "Error al crear el paciente")
+      }
+    } catch (error) {
+      console.error("Error creating patient:", error)
+      toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
+    }
   }
 
   const handleCancel = () => {
@@ -31,7 +42,7 @@ export default function NewPatientPage() {
         </header>
 
         <div className="flex-1 p-4 md:p-8 pt-6">
-          <CreatePatientForm onSubmit={handleSubmit} onCancel={handleCancel} />
+          <EnhancedCreatePatientForm onSubmit={handleSubmit} onCancel={handleCancel} />
         </div>
       </SidebarInset>
     </SidebarProvider>

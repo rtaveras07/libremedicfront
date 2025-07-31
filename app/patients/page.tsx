@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Filter, MoreHorizontal, Eye, Edit, FileText, Calendar, Phone, Mail, Loader2 } from "lucide-react"
+import { Search, Plus, Filter, MoreHorizontal, Eye, Edit, FileText, Calendar, Phone, Mail, Loader2, Trash2 } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -15,6 +15,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { api, Patient } from "@/lib/api"
 import { toast } from "sonner"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -22,6 +34,8 @@ export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     loadPatients()
@@ -77,6 +91,29 @@ export default function PatientsPage() {
 
   const getGenderDisplay = (gender: string) => {
     return gender === 'male' ? 'Masculino' : gender === 'female' ? 'Femenino' : gender
+  }
+
+  const handleDeletePatient = async (patientId: number) => {
+    if (isDeleting) return
+    
+    setIsDeleting(true)
+    
+    try {
+      const response = await api.deletePatient(patientId)
+      
+      if (response.success) {
+        toast.success("Paciente eliminado exitosamente!")
+        // Recargar la lista de pacientes
+        loadPatients()
+      } else {
+        toast.error(response.error || "Error al eliminar el paciente")
+      }
+    } catch (error) {
+      console.error("Error deleting patient:", error)
+      toast.error("Error de conexión. Verifica que el servidor esté ejecutándose.")
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (isLoading) {
@@ -250,11 +287,11 @@ export default function PatientsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => router.push(`/patients/${patient.id}`)}>
                                   <Eye className="mr-2 h-4 w-4" />
                                   Ver Perfil
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => router.push(`/patients/${patient.id}/edit`)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Editar
                                 </DropdownMenuItem>
@@ -265,6 +302,44 @@ export default function PatientsPage() {
                                 <DropdownMenuItem>
                                   <Calendar className="mr-2 h-4 w-4" />
                                   Nueva Cita
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <div className="flex items-center w-full">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Eliminar
+                                      </div>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta acción no se puede deshacer. Se eliminará permanentemente el paciente{" "}
+                                          <strong>{getPatientName(patient)}</strong> y todos sus datos asociados.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeletePatient(patient.id)}
+                                          disabled={isDeleting}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          {isDeleting ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Eliminando...
+                                            </>
+                                          ) : (
+                                            "Eliminar"
+                                          )}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -452,11 +527,11 @@ export default function PatientsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push(`/patients/${patient.id}`)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 Ver Perfil
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push(`/patients/${patient.id}/edit`)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Editar
                               </DropdownMenuItem>
@@ -467,6 +542,44 @@ export default function PatientsPage() {
                               <DropdownMenuItem>
                                 <Calendar className="mr-2 h-4 w-4" />
                                 Nueva Cita
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <div className="flex items-center w-full">
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Eliminar
+                                    </div>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Se eliminará permanentemente el paciente{" "}
+                                        <strong>{getPatientName(patient)}</strong> y todos sus datos asociados.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePatient(patient.id)}
+                                        disabled={isDeleting}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        {isDeleting ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Eliminando...
+                                          </>
+                                        ) : (
+                                          "Eliminar"
+                                        )}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
